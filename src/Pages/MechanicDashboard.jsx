@@ -1,27 +1,21 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 const MechanicDashboard = () => {
-  const [mechanic, setMechanic] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const navigate = useNavigate();
   const location = useLocation();
 
-  // ✅ Try to get from location first, then fallback to localStorage
   const workshopName = location.state?.workshop_name || localStorage.getItem("workshop_name");
   const workshop_id = location.state?.workshop_id || localStorage.getItem("workshop_id");
 
   useEffect(() => {
-    // ✅ Save to localStorage (in case this is first time login)
     if (workshopName && workshop_id) {
       localStorage.setItem("workshop_name", workshopName);
       localStorage.setItem("workshop_id", workshop_id);
     }
-
-    setMechanic({ workshopName, workshop_id });
 
     const fetchBookings = async () => {
       try {
@@ -50,31 +44,12 @@ const MechanicDashboard = () => {
     }
   }, [workshopName, workshop_id]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("workshop_name");
-    localStorage.removeItem("workshop_id");
-    navigate("/mechanic-login");
-  };
-
   if (loading) return <p>Loading...</p>;
   if (error) return <p className="text-red-500">Error: {error}</p>;
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen p-8">
       <div className="max-w-5xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">
-            Welcome, {mechanic?.workshopName}
-          </h1>
-          <button
-            onClick={handleLogout}
-            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-          >
-            Logout
-          </button>
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white p-6 rounded shadow">
             <h2 className="text-lg font-semibold text-gray-700 mb-2">Total Bookings</h2>

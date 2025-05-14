@@ -18,7 +18,7 @@ const BookingManagement = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto mt-10 bg-white p-8 rounded-xl shadow-lg">
+    <div className="max-w-4xl mx-auto mt-10 p-8 ">
       <h3 className="text-2xl font-bold text-[#086189] mb-6 text-center">Booking Management</h3>
       
       <div className="overflow-x-auto">

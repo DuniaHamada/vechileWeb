@@ -64,7 +64,7 @@ export default function WorkshopProfile() {
   const days = Object.keys(formData.workingHours);
 
   return (
-    <div className="max-w-2xl mx-auto mt-10 bg-white p-8 rounded-xl shadow-lg">
+    <div className="max-w-2xl mx-auto mt-10 p-8">
       <h2 className="text-3xl font-bold text-[#086189] mb-6 text-center">Edit Workshop Profile</h2>
 
       <form onSubmit={handleSubmit} className="space-y-6">

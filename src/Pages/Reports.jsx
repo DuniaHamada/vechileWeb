@@ -15,7 +15,7 @@ const Reports = () => {
   ];
 
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
+    <div className="p-8 min-h-screen">
       <div className="max-w-6xl mx-auto">
         <h2 className="text-3xl text-center font-bold mb-8 text-[#086189] "> Workshop Reports</h2>
 
@@ -34,7 +34,6 @@ const Reports = () => {
           ))}
         </div>
 
-        {/* Recent Activity Log */}
         <div className="bg-white p-6 rounded-2xl shadow">
           <h3 className="text-2xl font-semibold mb-4 text-[#086189] "> Recent Activity</h3>
           <ul className="divide-y divide-gray-200">

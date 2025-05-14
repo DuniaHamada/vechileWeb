@@ -1,6 +1,4 @@
-// App.jsx
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import About from "./components/About";
@@ -19,6 +17,7 @@ import ServicesPricing from "./Pages/ServicesPricing";
 import BookingManagement from "./Pages/BookingManagement";
 import SpecialOffers from "./Pages/SpecialOffers";
 import Reports from "./Pages/Reports.jsx";
+import ForgotPassword from "./Pages/ForgotPassword.jsx";
 
 import MechanicLayout from "./components/MechanicLayout";
 
@@ -44,10 +43,8 @@ const App = () => {
           }
         />
 
-        {/* صفحة تسجيل دخول الميكانيكي */}
         <Route path="/mechanic-login" element={<MechanicLogin />} />
-
-        {/* لوحة تحكم الميكانيكي (باستخدام Layout خاص) */}
+        <Route path="/mechanic-forgot-password" element={<ForgotPassword />} />
         <Route path="/mechanic-dashboard" element={<MechanicLayout />}>
           <Route index element={<MechanicDashboard />} />
           <Route path="profile" element={<WorkshopProfile />} />
