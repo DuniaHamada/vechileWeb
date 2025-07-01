@@ -1,102 +1,409 @@
-import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useState, useEffect } from 'react';
+import {
+  FiDollarSign,
+  FiStar,
+  FiTrendingUp,
+  FiTool,
+  FiClock,
+  FiMapPin,
+  FiCheckCircle,
+  FiXCircle,
+  FiUsers,
+  FiPackage,
+  FiAlertCircle,
+  FiCheck,
+  FiRotateCw
+} from 'react-icons/fi';
 
-const MechanicDashboard = () => {
-  const [bookings, setBookings] = useState([]);
+const WorkshopDashboard = () => {
+  const [stats, setStats] = useState({
+    servicesToday: 0,
+    requestsToday: 0,
+    monthlyRevenue: 0,
+    averageRating: 0,
+    bestService: '',
+    openStatus: true,
+    pendingRequests: 0,
+    completedServices: 0
+  });
+
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [time, setTime] = useState(new Date());
 
-  const location = useLocation();
-
-  const workshopName = location.state?.workshop_name || localStorage.getItem("workshop_name");
-  const workshop_id = location.state?.workshop_id || localStorage.getItem("workshop_id");
-
+  // Simulate data fetching
   useEffect(() => {
-    if (workshopName && workshop_id) {
-      localStorage.setItem("workshop_name", workshopName);
-      localStorage.setItem("workshop_id", workshop_id);
-    }
-
-    const fetchBookings = async () => {
+    const fetchData = async () => {
+      setLoading(true);
       try {
-        const response = await fetch(
-          `http://176.119.254.225:80/booking/workshop/${workshop_id}/bookings`
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch bookings");
-        }
-
-        const data = await response.json();
-        setBookings(data);
+        setTimeout(() => {
+          setStats({
+            servicesToday: 14,
+            requestsToday: 8,
+            monthlyRevenue: 12450.75,
+            averageRating: 4.7,
+            bestService: 'Full Engine Tune-Up',
+            openStatus: true,
+            pendingRequests: 3,
+            completedServices: 42
+          });
+          
+          setLoading(false);
+        }, 1000);
       } catch (error) {
-        setError(error.message);
-      } finally {
+        console.error('Error fetching data:', error);
         setLoading(false);
       }
     };
 
-    if (workshop_id) {
-      fetchBookings();
-    } else {
-      setError("Workshop ID is missing.");
-      setLoading(false);
-    }
-  }, [workshopName, workshop_id]);
+    fetchData();
 
-  if (loading) return <p>Loading...</p>;
-  if (error) return <p className="text-red-500">Error: {error}</p>;
+    // Update time every minute
+    const timer = setInterval(() => setTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
+  };
 
   return (
-    <div className="min-h-screen p-8">
-      <div className="max-w-5xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-6 rounded shadow">
-            <h2 className="text-lg font-semibold text-gray-700 mb-2">Total Bookings</h2>
-            <p className="text-3xl font-bold text-[#086189]">{bookings.length}</p>
+    <div className="min-h-screen p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+          <div>
+            <p className="text-gray-600">
+              {time.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </p>
+          </div>
+          <div className="mt-4 md:mt-0 flex items-center space-x-4">
+            <div className={`flex items-center px-4 py-2 rounded-full ${stats.openStatus ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+              {stats.openStatus ? (
+                <>
+                  <FiCheckCircle className="mr-2" />
+                  <span>Open Now</span>
+                </>
+              ) : (
+                <>
+                  <FiXCircle className="mr-2" />
+                  <span>Closed</span>
+                </>
+              )}
+            </div>
+            <div className="text-lg font-medium text-gray-700">
+              {time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded shadow">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Bookings List</h2>
-          {bookings.length === 0 ? (
-            <p className="text-gray-500">No bookings found.</p>
-          ) : (
-            <table className="w-full table-auto text-left">
-              <thead>
-                <tr className="bg-gray-100 text-gray-700">
-                  <th className="px-4 py-2">ID</th>
-                  <th className="px-4 py-2">Customer</th>
-                  <th className="px-4 py-2">Date</th>
-                  <th className="px-4 py-2">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bookings.map((booking) => (
-                  <tr key={booking.booking_id} className="border-t text-gray-600">
-                    <td className="px-4 py-2">{booking.booking_id}</td>
-                    <td className="px-4 py-2">{booking.first_name} {booking.last_name}</td>
-                    <td className="px-4 py-2">{booking.booking_date}</td>
-                    <td className="px-4 py-2">
-                      <span
-                        className={`px-2 py-1 rounded text-sm ${
-                          booking.booking_status === "accepted"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-yellow-100 text-yellow-700"
-                        }`}
-                      >
-                        {booking.booking_status}
+        {/* Stats Grid */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-white rounded-xl shadow-sm p-6 h-32 animate-pulse"></div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* Services Today */}
+            <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Services Today</p>
+                  <h3 className="text-2xl font-bold mt-1">{stats.servicesToday}</h3>
+                </div>
+                <div className="p-3 bg-blue-100 rounded-lg text-blue-600">
+                  <FiTool className="text-xl" />
+                </div>
+              </div>
+              <div className="mt-4 flex items-center text-sm text-gray-500">
+                <FiTrendingUp className="mr-1 text-green-500" />
+                <span>+12% from yesterday</span>
+              </div>
+            </div>
+
+            {/* Requests Today */}
+            <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-purple-500">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Requests Today</p>
+                  <h3 className="text-2xl font-bold mt-1">{stats.requestsToday}</h3>
+                </div>
+                <div className="p-3 bg-purple-100 rounded-lg text-purple-600">
+                  <FiUsers className="text-xl" />
+                </div>
+              </div>
+              <div className="mt-4 flex items-center text-sm text-gray-500">
+                <FiClock className="mr-1 text-yellow-500" />
+                <span>{stats.pendingRequests} pending</span>
+              </div>
+            </div>
+
+            {/* Monthly Revenue */}
+            <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-green-500">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Monthly Revenue</p>
+                  <h3 className="text-2xl font-bold mt-1">{formatCurrency(stats.monthlyRevenue)}</h3>
+                </div>
+                <div className="p-3 bg-green-100 rounded-lg text-green-600">
+                  <FiDollarSign className="text-xl" />
+                </div>
+              </div>
+              <div className="mt-4 flex items-center text-sm text-gray-500">
+                <FiTrendingUp className="mr-1 text-green-500" />
+                <span>+8.5% from last month</span>
+              </div>
+            </div>
+
+            {/* Average Rating */}
+            <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-yellow-500">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Average Rating</p>
+                  <div className="flex items-center mt-1">
+                    <h3 className="text-2xl font-bold mr-2">{stats.averageRating}</h3>
+                    <div className="flex text-yellow-400">
+                      {[...Array(5)].map((_, i) => (
+                        <FiStar
+                          key={i}
+                          className={i < Math.floor(stats.averageRating) ? 'fill-current' : ''}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="p-3 bg-yellow-100 rounded-lg text-yellow-600">
+                  <FiStar className="text-xl" />
+                </div>
+              </div>
+              <div className="mt-4 text-sm text-gray-500">
+                Best service: {stats.bestService}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Combined Working Hours and Service Breakdown Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Working Hours - Modern Card */}
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+            <div className="p-6 pb-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+                  <div className="p-2 bg-indigo-100 rounded-lg mr-3 text-indigo-600">
+                    <FiClock className="text-lg" />
+                  </div>
+                  Working Hours
+                </h2>
+                <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  stats.openStatus ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                }`}>
+                  {stats.openStatus ? 'Open Now' : 'Closed'}
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                {[
+                  { day: 'Mon-Fri', hours: '8:00 AM - 6:00 PM', current: true },
+                  { day: 'Saturday', hours: '9:00 AM - 4:00 PM' },
+                  { day: 'Sunday', hours: 'Closed' }
+                ].map((item, index) => (
+                  <div key={index} className="flex justify-between items-center py-2">
+                    <div className="flex items-center">
+                      <span className={`font-medium w-20 ${item.current ? 'text-gray-800' : 'text-gray-500'}`}>
+                        {item.day}
                       </span>
-                    </td>
-                  </tr>
+                      {item.current && (
+                        <span className="ml-2 px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded-full">
+                          Today
+                        </span>
+                      )}
+                    </div>
+                    <span className={`text-sm ${item.current ? 'text-gray-800 font-medium' : 'text-gray-400'}`}>
+                      {item.hours}
+                    </span>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          )}
+              </div>
+              
+              <div className="mt-6 pt-4 border-t border-gray-100">
+                <div className="flex items-center">
+                  <FiMapPin className="text-gray-400 mr-2" />
+                  <span className="text-sm text-gray-500">123 Workshop St, Auto City</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Service Breakdown - Modern Card */}
+          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+            <div className="p-6">
+              <div className="mb-6">
+                <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+                  <div className="p-2 bg-blue-100 rounded-lg mr-3 text-blue-600">
+                    <FiTool className="text-lg" />
+                  </div>
+                  Service Breakdown
+                </h2>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Completed Services */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex justify-between items-start mb-3">
+                    <span className="text-sm font-medium text-gray-500">Completed</span>
+                    <div className="p-1.5 bg-green-100 rounded-md text-green-600">
+                      <FiCheck className="text-sm" />
+                    </div>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-2">{stats.completedServices}</h3>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="h-2 rounded-full bg-green-500" 
+                      style={{ width: `${(stats.completedServices / (stats.completedServices + stats.pendingRequests)) * 100}%` }}
+                    ></div>
+                  </div>
+                  <div className="mt-2 flex items-center text-xs text-gray-500">
+                    <FiTrendingUp className="mr-1 text-green-500" />
+                    <span>+15% from last week</span>
+                  </div>
+                </div>
+                
+                {/* In Progress */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex justify-between items-start mb-3">
+                    <span className="text-sm font-medium text-gray-500">In Progress</span>
+                    <div className="p-1.5 bg-blue-100 rounded-md text-blue-600">
+                      <FiRotateCw className="text-sm" />
+                    </div>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-2">{stats.servicesToday - stats.pendingRequests}</h3>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="h-2 rounded-full bg-blue-500" 
+                      style={{ width: `${((stats.servicesToday - stats.pendingRequests) / stats.servicesToday) * 100}%` }}
+                    ></div>
+                  </div>
+                  <div className="mt-2 flex items-center text-xs text-gray-500">
+                    <FiAlertCircle className="mr-1 text-blue-500" />
+                    <span>Average time: 2h 15m</span>
+                  </div>
+                </div>
+                
+                {/* Pending Requests */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex justify-between items-start mb-3">
+                    <span className="text-sm font-medium text-gray-500">Pending</span>
+                    <div className="p-1.5 bg-yellow-100 rounded-md text-yellow-600">
+                      <FiClock className="text-sm" />
+                    </div>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-2">{stats.pendingRequests}</h3>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="h-2 rounded-full bg-yellow-500" 
+                      style={{ width: `${(stats.pendingRequests / stats.servicesToday) * 100}%` }}
+                    ></div>
+                  </div>
+                  <div className="mt-2 flex items-center text-xs text-gray-500">
+                    <FiAlertCircle className="mr-1 text-yellow-500" />
+                    <span>Needs attention</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-6 pt-6 border-t border-gray-100">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm text-gray-500">Total Services This Month</p>
+                    <p className="text-xl font-bold text-gray-800">{stats.completedServices + stats.pendingRequests}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-gray-500">Completion Rate</p>
+                    <p className="text-xl font-bold text-gray-800">
+                      {((stats.completedServices / (stats.completedServices + stats.pendingRequests)) * 100).toFixed(1)}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Best Performing Services */}
+        <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-gray-800">Best Performing Services</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {loading ? (
+              [...Array(3)].map((_, i) => (
+                <div key={i} className="h-40 bg-gray-100 rounded-lg animate-pulse"></div>
+              ))
+            ) : (
+              <>
+                <div className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-medium text-gray-800">Full Engine Tune-Up</h3>
+                    <div className="p-2 bg-green-100 rounded-lg text-green-600">
+                      <FiTrendingUp />
+                    </div>
+                  </div>
+                  <p className="text-gray-500 text-sm mb-3">Most requested service this month</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-2xl font-bold text-gray-800">{formatCurrency(249.99)}</span>
+                    <div className="flex items-center text-yellow-400">
+                      <FiStar className="fill-current" />
+                      <span className="ml-1 text-gray-700">4.9</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-medium text-gray-800">Brake System Service</h3>
+                    <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+                      <FiTrendingUp />
+                    </div>
+                  </div>
+                  <p className="text-gray-500 text-sm mb-3">High customer satisfaction</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-2xl font-bold text-gray-800">{formatCurrency(179.99)}</span>
+                    <div className="flex items-center text-yellow-400">
+                      <FiStar className="fill-current" />
+                      <span className="ml-1 text-gray-700">4.8</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-medium text-gray-800">Oil Change</h3>
+                    <div className="p-2 bg-purple-100 rounded-lg text-purple-600">
+                      <FiPackage />
+                    </div>
+                  </div>
+                  <p className="text-gray-500 text-sm mb-3">Most frequent service</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-2xl font-bold text-gray-800">{formatCurrency(89.99)}</span>
+                    <div className="flex items-center text-yellow-400">
+                      <FiStar className="fill-current" />
+                      <span className="ml-1 text-gray-700">4.7</span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-export default MechanicDashboard;
+export default WorkshopDashboard;

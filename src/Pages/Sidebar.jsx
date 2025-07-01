@@ -1,59 +1,102 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  FiHome as Home,
+  FiUsers as Users,
+  FiSettings as Settings,
+  FiCalendar as Calendar,
+  FiDollarSign as DollarSign,
+  FiFileText as FileText,
+  FiStar as Star,
+  FiTool as Tool,
+  FiCheckCircle as CheckCircle,
+  FiXCircle as XCircle,
+  FiClock as Clock,
+  FiTag as Tag
+} from "react-icons/fi";
 
 const Sidebar = () => {
+  const location = useLocation();
   const navigate = useNavigate();
+  const mechanicData = JSON.parse(localStorage.getItem("mechanic"));
 
-  const navItems = [
-    { label: "Dashboard", path: "/mechanic-dashboard" },
-    { label: "Workshop Profile", path: "/mechanic-dashboard/profile" },
-    { label: "Services & Pricing", path: "/mechanic-dashboard/services" },
-    { label: "Bookings", path: "/mechanic-dashboard/bookings" },
-    { label: "Special Offers", path: "/mechanic-dashboard/offers" },
-    { label: "Reports", path: "/mechanic-dashboard/reports" },
+  // Menu icons mapping
+  const menuIcons = {
+    Dashboard: <Home size={18} />,
+    "Bookings Management": <Calendar size={18} />,
+    "Financial Reports": <DollarSign size={18} />,
+    "Feedback & Reviews": <Star size={18} />,
+    "Settings": <Settings size={18} />,
+    "Invoices": <FileText size={18} />,
+    "Work Hours": <Clock size={18} />,
+    "Services": <Tag size={18} />
+  };
+
+  // Main menu items
+  const mainMenus = [
+    { path: "/mechanic-dashboard", label: "Dashboard" },
+    { path: "/mechanic-dashboard/bookings", label: "Bookings Management" },
+    { path: "/mechanic-dashboard/financial-reports", label: "Financial Reports" },
+    { path: "/mechanic-dashboard/invoices", label: "Invoices" },
+    { path: "/mechanic-dashboard/reviews", label: "Feedback & Reviews" },
   ];
 
-  const handleLogout = () => {
-    // Remove the token from localStorage
-    localStorage.removeItem("token");
+  // Settings menu items
+  const settingsMenus = [
+    { path: "/mechanic-dashboard/settings/services", label: "Services" },
+    { path: "/mechanic-dashboard/settings/work-hours", label: "Work Hours" },
+  ];
 
-    // Redirect to the mechanic login page
-    navigate("/mechanic-login");
+  // Check if a path is active
+  const isActive = (path) => {
+    return location.pathname === path;
   };
 
   return (
-    <div className="w-64 min-h-screen bg-white shadow-lg border-r border-gray-200 px-6 pt-24 text-gray-800">
-      <ul className="space-y-1">
-        {navItems.map(({ label, path }, index) => (
-          <li key={path}>
-            <NavLink
-              to={path}
-              className={({ isActive }) =>
-                `flex items-center px-4 py-3 rounded-lg transition-colors duration-200
-                ${isActive ? 'bg-[#E6F1F5] text-[#086189] font-semibold shadow-inner' : 'hover:bg-gray-100'}`
-              }
+    <div className="w-64 bg-white text-gray-800 h-full min-h-screen p-4 fixed top-0 left-0 z-40 shadow-lg pt-24 overflow-y-auto border-r border-gray-200">
+     
+      {/* Main Navigation */}
+      <ul className="space-y-1 ">
+        {mainMenus.map((item, index) => (
+          <li key={index}>
+            <Link
+              to={item.path}
+              className={`flex items-center p-3 rounded-md transition-all duration-200 ${
+                isActive(item.path)
+                  ? "bg-[#086189] text-white shadow-md"
+                  : "hover:bg-[#086189]/10 hover:text-[#086189]"
+              }`}
+              onClick={() => navigate(item.path)}
             >
-              {label}
-            </NavLink>
-            {index < navItems.length - 1 && (
-              <hr className="border-t border-gray-200 my-1" />
-            )}
+              <span className="mr-3">
+                {menuIcons[item.label] || <Home size={18} />}
+              </span>
+              <span>{item.label}</span>
+            </Link>
           </li>
         ))}
-
-        {/* Divider before settings & logout */}
-        <hr className="border-t border-gray-200 my-1" />
-
-        {/* Logout */}
-        <li>
-          <button
-            onClick={handleLogout}
-            className="flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100"
-          >
-            Logout
-          </button>
-        </li>
       </ul>
-    </div>
+      
+       
+        <ul className="space-y-1">
+          {settingsMenus.map((item, index) => (
+            <li key={index}>
+              <Link
+                to={item.path}
+                className={`flex items-center p-3 rounded-md transition-all duration-200 ${
+                  location.pathname === item.path
+                    ? "bg-[#086189] text-white shadow-md"
+                    : "hover:bg-[#086189]/10 hover:text-[#086189]"
+                }`}
+              >
+                <span className="mr-3">
+                  {menuIcons[item.label] || <Settings size={18} />}
+                </span>
+                <span>{item.label}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
   );
 };
 

@@ -8,6 +8,7 @@ import Screenshots from "./components/Screenshots";
 import Footer from "./components/Footer";
 import ContactUs from "./components/ContactUs";
 import FAQ from "./components/FAQ";
+import ForgotPassword from "./components/ForgotPassword.jsx";
 import MechanicSection from "./components/MechanicSection";
 
 import MechanicLogin from "./Pages/MechanicLogin";
@@ -17,10 +18,10 @@ import ServicesPricing from "./Pages/ServicesPricing";
 import BookingManagement from "./Pages/BookingManagement";
 import SpecialOffers from "./Pages/SpecialOffers";
 import Reports from "./Pages/Reports.jsx";
-import ForgotPassword from "./Pages/ForgotPassword.jsx";
-
+import InvoicesPage from "./Pages/Invoices.jsx";
+import Feedback from "./Pages/Feedback.jsx";
 import MechanicLayout from "./components/MechanicLayout";
-
+import WorkshopHours from "./Pages/WorkshopHoursPage.jsx";
 const App = () => {
   return (
     <Router>
@@ -45,6 +46,8 @@ const App = () => {
 
         <Route path="/mechanic-login" element={<MechanicLogin />} />
         <Route path="/mechanic-forgot-password" element={<ForgotPassword />} />
+        
+        {/* Mechanic Dashboard Routes */}
         <Route path="/mechanic-dashboard" element={<MechanicLayout />}>
           <Route index element={<MechanicDashboard />} />
           <Route path="profile" element={<WorkshopProfile />} />
@@ -52,6 +55,13 @@ const App = () => {
           <Route path="bookings" element={<BookingManagement />} />
           <Route path="offers" element={<SpecialOffers />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="financial-reports" element={<Reports />} />
+          <Route path="invoices" element={<InvoicesPage />} />
+          <Route path="reviews" element={<Feedback />} />
+          <Route path="settings/profile" element={<WorkshopProfile />} />
+          <Route path="settings/services" element={<ServicesPricing />} />
+          <Route path="settings/work-hours" element={<WorkshopHours />} />
+          <Route path="settings/notifications" element={<Reports />} />
         </Route>
       </Routes>
     </Router>
