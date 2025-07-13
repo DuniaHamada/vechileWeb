@@ -1,143 +1,234 @@
-import { useState, useEffect } from 'react';
-import { 
-  FiCalendar, FiClock, FiUser, FiTool, FiDollarSign, 
-  FiCheck, FiX, FiEdit, FiSearch, FiFilter, FiAlertCircle, 
-  FiCheckCircle, FiXCircle 
-} from 'react-icons/fi';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from "react";
+import {
+  FiCalendar,
+  FiClock,
+  FiUser,
+  FiTool,
+  FiDollarSign,
+  FiCheck,
+  FiX,
+  FiEdit,
+  FiSearch,
+  FiFilter,
+  FiAlertCircle,
+  FiCheckCircle,
+  FiXCircle,
+} from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const BookingsManagement = () => {
-  const [bookings, setBookings] = useState([]);
-  const [activeTab, setActiveTab] = useState('pending');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState("pending");
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({});
   const navigate = useNavigate();
+  const [allBookings, setAllBookings] = useState([]);
+  const [todayBookings, setTodayBookings] = useState([]);
+  const [pendingBookings, setPendingBookings] = useState([]);
 
-  // Sample data - replace with API calls in a real application
   useEffect(() => {
     const fetchBookings = async () => {
-      // Simulate API call
-      setTimeout(() => {
-        setBookings([
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem("accessToken"); // افتراضاً التوكين مخزن هون
+        if (!token) {
+          console.warn("No token found");
+          return;
+        }
+
+        const response = await axios.get(
+          "http://176.119.254.225:80/booking/Mechanic/bookings",
           {
-            id: 1,
-            customerName: 'Ahmed Mohamed',
-            vehicle: 'Toyota Camry 2018',
-            service: 'Oil Change',
-            date: new Date().toISOString().split('T')[0], // Today's date
-            time: '10:00 AM',
-            status: 'pending',
-            price: 150,
-            paymentStatus: 'pending',
-            notes: 'Customer requested synthetic oil'
-          },
-          {
-            id: 2,
-            customerName: 'Youssef Ali',
-            vehicle: 'Honda Accord 2020',
-            service: 'Brake Inspection',
-            date: new Date().toISOString().split('T')[0], // Today's date
-            time: '2:30 PM',
-            status: 'pending',
-            price: 200,
-            paymentStatus: 'pending',
-            notes: 'Possible brake pad replacement needed'
-          },
-          {
-            id: 3,
-            customerName: 'Mahmoud Hassan',
-            vehicle: 'Nissan Altima 2019',
-            service: 'Tire Rotation',
-            date: '2023-06-17',
-            time: '9:00 AM',
-            status: 'confirmed',
-            price: 80,
-            paymentStatus: 'paid',
-            notes: 'Confirmed via phone'
-          },
-          {
-            id: 4,
-            customerName: 'Omar Ibrahim',
-            vehicle: 'Ford F-150 2021',
-            service: 'Engine Diagnostics',
-            date: new Date().toISOString().split('T')[0], // Today's date
-            time: '11:00 AM',
-            status: 'confirmed',
-            price: 120,
-            paymentStatus: 'paid',
-            notes: 'Check engine light is on'
-          },
-          {
-            id: 5,
-            customerName: 'Karim Samir',
-            vehicle: 'Chevrolet Malibu 2022',
-            service: 'Battery Replacement',
-            date: '2023-06-19',
-            time: '3:00 PM',
-            status: 'pending',
-            price: 250,
-            paymentStatus: 'pending',
-            notes: 'Battery warranty check needed'
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
           }
-        ]);
+        );
+
+        setAllBookings(response.data.bookings);
+      } catch (error) {
+        console.error("Error fetching bookings:", error);
+
+        // إذا التوكين منتهي أو غير صالح
+        if (error.response?.status === 401) {
+          alert("Session expired. Please log in again.");
+          localStorage.removeItem("token");
+        }
+      } finally {
         setIsLoading(false);
-      }, 1000);
+      }
     };
 
     fetchBookings();
   }, []);
 
-  // Filter bookings based on active tab and search term
-  const filteredBookings = bookings.filter(booking => {
-    // Filter by tab
-    if (activeTab === 'pending' && booking.status !== 'pending') return false;
-    if (activeTab === 'today' && booking.date !== new Date().toISOString().split('T')[0]) return false;
-    
+  useEffect(() => {
+    const fetchTodayBookings = async () => {
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem("accessToken");
+        if (!token) {
+          console.warn("No token found");
+          return;
+        }
+
+        const response = await axios.get(
+          "http://176.119.254.225:80/booking/Mechanic/bookings/today",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        setTodayBookings(response.data.bookings); // You can use setTodayBookings if you separate them
+      } catch (error) {
+        console.error("Error fetching today's bookings:", error);
+
+        if (error.response?.status === 401) {
+          alert("Session expired. Please log in again.");
+          localStorage.removeItem("token");
+          // Optional: redirect to login page here
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTodayBookings();
+  }, []);
+  useEffect(() => {
+    const fetchPendingBookings = async () => {
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem("accessToken");
+        if (!token) {
+          console.warn("No token found");
+          return;
+        }
+
+        const response = await axios.get(
+          "http://176.119.254.225:80/booking/Mechanic/bookings/pending",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        setPendingBookings(response.data.bookings); // You can use a separate state like setPendingBookings
+      } catch (error) {
+        console.error("Error fetching pending bookings:", error);
+
+        if (error.response?.status === 401) {
+          alert("Session expired. Please log in again.");
+          localStorage.removeItem("token");
+          // Optionally redirect to login
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPendingBookings();
+  }, []);
+  // Get the appropriate bookings based on active tab
+  const getCurrentBookings = () => {
+    switch (activeTab) {
+      case "pending":
+        return pendingBookings;
+      case "today":
+        return todayBookings;
+      case "all":
+        return allBookings;
+      default:
+        return [];
+    }
+  };
+
+  // Filter bookings based on search term
+  const filteredBookings = getCurrentBookings().filter((booking) => {
     // Filter by search term
-    if (searchTerm && !booking.customerName.toLowerCase().includes(searchTerm.toLowerCase()) && 
-        !booking.vehicle.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        !booking.service.toLowerCase().includes(searchTerm.toLowerCase())) {
+    if (
+      searchTerm &&
+      !`${booking.first_name} ${booking.last_name}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) &&
+      !`${booking.make} ${booking.model}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) &&
+      !booking.service_name?.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      !booking.workshop_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    ) {
       return false;
     }
-    
+
     return true;
   });
 
   const handleStatusChange = (bookingId, newStatus) => {
-    setBookings(bookings.map(booking => 
-      booking.id === bookingId ? { ...booking, status: newStatus } : booking
-    ));
+    // Update the appropriate state based on active tab
+    const updateBookings = (bookingsArray, setBookingsArray) => {
+      setBookingsArray(
+        bookingsArray.map((booking) =>
+          booking.booking_id === bookingId
+            ? { ...booking, booking_status: newStatus }
+            : booking
+        )
+      );
+    };
+
+    // Update all relevant state arrays
+    updateBookings(allBookings, setAllBookings);
+    updateBookings(todayBookings, setTodayBookings);
+    updateBookings(pendingBookings, setPendingBookings);
+
     // In a real app, you would also update the backend here
   };
 
   const handleEditSubmit = () => {
-    setBookings(bookings.map(booking => 
-      booking.id === selectedBooking.id ? { ...booking, ...editData } : booking
-    ));
+    // Update the appropriate state based on active tab
+    const updateBookings = (bookingsArray, setBookingsArray) => {
+      setBookingsArray(
+        bookingsArray.map((booking) =>
+          booking.booking_id === selectedBooking.booking_id
+            ? { ...booking, ...editData }
+            : booking
+        )
+      );
+    };
+
+    // Update all relevant state arrays
+    updateBookings(allBookings, setAllBookings);
+    updateBookings(todayBookings, setTodayBookings);
+    updateBookings(pendingBookings, setPendingBookings);
+
     setIsEditing(false);
     // In a real app, you would also update the backend here
   };
 
   const statusBadge = (status) => {
     const classes = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      confirmed: 'bg-blue-100 text-blue-800',
-      completed: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800'
+      pending: "bg-yellow-100 text-yellow-800",
+      confirmed: "bg-blue-100 text-blue-800",
+      completed: "bg-green-100 text-green-800",
+      cancelled: "bg-red-100 text-red-800",
     };
-    
+
     const text = {
-      pending: 'Pending',
-      confirmed: 'Confirmed',
-      completed: 'Completed',
-      cancelled: 'Cancelled'
+      pending: "Pending",
+      confirmed: "Confirmed",
+      completed: "Completed",
+      cancelled: "Cancelled",
     };
-    
+
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${classes[status]}`}>
+      <span
+        className={`px-2 py-1 rounded-full text-xs font-medium ${classes[status]}`}
+      >
         {text[status]}
       </span>
     );
@@ -145,19 +236,21 @@ const BookingsManagement = () => {
 
   const paymentBadge = (status) => {
     const classes = {
-      paid: 'bg-green-100 text-green-800',
-      pending: 'bg-yellow-100 text-yellow-800',
-      refunded: 'bg-purple-100 text-purple-800'
+      paid: "bg-green-100 text-green-800",
+      pending: "bg-yellow-100 text-yellow-800",
+      refunded: "bg-purple-100 text-purple-800",
     };
-    
+
     const text = {
-      paid: 'Paid',
-      pending: 'Pending',
-      refunded: 'Refunded'
+      paid: "Paid",
+      pending: "Pending",
+      refunded: "Refunded",
     };
-    
+
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${classes[status]}`}>
+      <span
+        className={`px-2 py-1 rounded-full text-xs font-medium ${classes[status]}`}
+      >
         {text[status]}
       </span>
     );
@@ -165,28 +258,38 @@ const BookingsManagement = () => {
 
   return (
     <div className="p-6">
-    
-
       {/* Tabs */}
       <div className="border-b border-gray-200 mb-6">
         <nav className="-mb-px flex space-x-8">
           <button
-            onClick={() => setActiveTab('pending')}
-            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${activeTab === 'pending' ? 'border-[#086189] text-[#086189]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+            onClick={() => setActiveTab("pending")}
+            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
+              activeTab === "pending"
+                ? "border-[#086189] text-[#086189]"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
           >
             <FiAlertCircle className="mr-2" />
             Pending Requests
           </button>
           <button
-            onClick={() => setActiveTab('today')}
-            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${activeTab === 'today' ? 'border-[#086189] text-[#086189]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+            onClick={() => setActiveTab("today")}
+            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
+              activeTab === "today"
+                ? "border-[#086189] text-[#086189]"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
           >
             <FiCalendar className="mr-2" />
             Today's Schedule
           </button>
           <button
-            onClick={() => setActiveTab('all')}
-            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${activeTab === 'all' ? 'border-[#086189] text-[#086189]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+            onClick={() => setActiveTab("all")}
+            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
+              activeTab === "all"
+                ? "border-[#086189] text-[#086189]"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
           >
             <FiCheckCircle className="mr-2" />
             All Bookings
@@ -220,9 +323,11 @@ const BookingsManagement = () => {
         ) : filteredBookings.length === 0 ? (
           <div className="p-8 text-center">
             <p className="text-gray-600">
-              {activeTab === 'pending' ? 'No pending requests' : 
-               activeTab === 'today' ? 'No bookings scheduled for today' : 
-               'No bookings found'}
+              {activeTab === "pending"
+                ? "No pending requests"
+                : activeTab === "today"
+                ? "No bookings scheduled for today"
+                : "No bookings found"}
             </p>
           </div>
         ) : (
@@ -230,19 +335,33 @@ const BookingsManagement = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vehicle & Service</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Customer
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Vehicle & Service
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date & Time
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Workshop
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Amount
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredBookings.map((booking) => (
-                  <tr 
-                    key={booking.id} 
+                  <tr
+                    key={booking.id}
                     className="hover:bg-gray-50 cursor-pointer"
                     onClick={() => setSelectedBooking(booking)}
                   >
@@ -252,38 +371,58 @@ const BookingsManagement = () => {
                           <FiUser size={18} />
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{booking.customerName}</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {booking.first_name} {booking.last_name}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {booking.phone_number}
+                          </div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 font-medium">{booking.vehicle}</div>
-                      <div className="text-sm text-gray-500">{booking.service}</div>
+                      <div className="text-sm text-gray-900 font-medium">
+                        {booking.make} {booking.model} ({booking.year})
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {booking.service_name}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <FiCalendar className="mr-1 text-gray-400" size={14} />
-                        <span className="text-sm text-gray-900 mr-3">{booking.date}</span>
+                        <span className="text-sm text-gray-900 mr-3">
+                          {new Date(
+                            booking.scheduled_date
+                          ).toLocaleDateString()}
+                        </span>
                         <FiClock className="mr-1 text-gray-400" size={14} />
-                        <span className="text-sm text-gray-900">{booking.time}</span>
+                        <span className="text-sm text-gray-900">
+                          {booking.scheduled_time}
+                        </span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {statusBadge(booking.status)}
+                      {statusBadge(booking.booking_status)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {paymentBadge(booking.paymentStatus)}
+                      <div className="text-sm text-gray-500">
+                        {booking.workshop_name}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${booking.price}
+                      ₪{booking.price}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
-                        {booking.status === 'pending' && (
+                        {booking.booking_status === "pending" && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleStatusChange(booking.id, 'confirmed');
+                              handleStatusChange(
+                                booking.booking_id,
+                                "confirmed"
+                              );
                             }}
                             className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50"
                             title="Confirm booking"
@@ -291,13 +430,13 @@ const BookingsManagement = () => {
                             <FiCheck size={18} />
                           </button>
                         )}
-                        <button
+                        {/* <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedBooking(booking);
                             setEditData({
-                              date: booking.date,
-                              time: booking.time
+                              scheduled_date: booking.scheduled_date,
+                              scheduled_time: booking.scheduled_time,
                             });
                             setIsEditing(true);
                           }}
@@ -305,12 +444,15 @@ const BookingsManagement = () => {
                           title="Edit booking"
                         >
                           <FiEdit size={18} />
-                        </button>
-                        {booking.status !== 'cancelled' && (
+                        </button> */}
+                        {booking.booking_status !== "cancelled" && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleStatusChange(booking.id, 'cancelled');
+                              handleStatusChange(
+                                booking.booking_id,
+                                "cancelled"
+                              );
                             }}
                             className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50"
                             title="Cancel booking"
@@ -335,9 +477,9 @@ const BookingsManagement = () => {
             <div className="p-6">
               <div className="flex justify-between items-start">
                 <h2 className="text-xl font-bold text-gray-800">
-                  {isEditing ? 'Edit Booking' : 'Booking Details'}
+                  {isEditing ? "Edit Booking" : "Booking Details"}
                 </h2>
-                <button 
+                <button
                   onClick={() => {
                     setSelectedBooking(null);
                     setIsEditing(false);
@@ -347,34 +489,66 @@ const BookingsManagement = () => {
                   <FiX size={24} />
                 </button>
               </div>
-              
+
               {isEditing ? (
                 <div className="mt-6 space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Date
+                      </label>
                       <input
                         type="date"
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#086189]"
-                        value={editData.date}
-                        onChange={(e) => setEditData({...editData, date: e.target.value})}
+                        value={
+                          editData.scheduled_date
+                            ? new Date(editData.scheduled_date)
+                                .toISOString()
+                                .split("T")[0]
+                            : ""
+                        }
+                        onChange={(e) =>
+                          setEditData({
+                            ...editData,
+                            scheduled_date: e.target.value,
+                          })
+                        }
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Time
+                      </label>
                       <select
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#086189]"
-                        value={editData.time}
-                        onChange={(e) => setEditData({...editData, time: e.target.value})}
+                        value={editData.scheduled_time}
+                        onChange={(e) =>
+                          setEditData({
+                            ...editData,
+                            scheduled_time: e.target.value,
+                          })
+                        }
                       >
-                        {['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', 
-                          '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'].map(time => (
-                          <option key={time} value={time}>{time}</option>
+                        {[
+                          "8:00 AM",
+                          "9:00 AM",
+                          "10:00 AM",
+                          "11:00 AM",
+                          "12:00 PM",
+                          "1:00 PM",
+                          "2:00 PM",
+                          "3:00 PM",
+                          "4:00 PM",
+                          "5:00 PM",
+                        ].map((time) => (
+                          <option key={time} value={time}>
+                            {time}
+                          </option>
                         ))}
                       </select>
                     </div>
                   </div>
-                  
+
                   <div className="mt-6 flex justify-end space-x-3">
                     <button
                       onClick={() => setIsEditing(false)}
@@ -393,66 +567,101 @@ const BookingsManagement = () => {
               ) : (
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Customer Information</h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">
+                      Customer Information
+                    </h3>
                     <div className="space-y-3">
                       <div className="flex items-center">
                         <FiUser className="text-gray-500 mr-2" />
-                        <span className="text-gray-700">{selectedBooking.customerName}</span>
+                        <span className="text-gray-700">
+                          {selectedBooking.first_name}{" "}
+                          {selectedBooking.last_name}
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <FiUser className="text-gray-500 mr-2" />
+                        <span className="text-gray-700">
+                          {selectedBooking.phone_number}
+                        </span>
                       </div>
                     </div>
                   </div>
-                  
+
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Service Details</h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">
+                      Service Details
+                    </h3>
                     <div className="space-y-3">
                       <div className="flex items-center">
                         <FiTool className="text-gray-500 mr-2" />
-                        <span className="text-gray-700">{selectedBooking.service}</span>
+                        <span className="text-gray-700">
+                          {selectedBooking.service_name}
+                        </span>
                       </div>
                       <div className="flex items-center">
                         <FiCalendar className="text-gray-500 mr-2" />
-                        <span className="text-gray-700">{selectedBooking.date} at {selectedBooking.time}</span>
+                        <span className="text-gray-700">
+                          {new Date(
+                            selectedBooking.scheduled_date
+                          ).toLocaleDateString()}{" "}
+                          at {selectedBooking.scheduled_time}
+                        </span>
                       </div>
                     </div>
                   </div>
-                  
+
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Vehicle Information</h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">
+                      Vehicle Information
+                    </h3>
                     <div className="space-y-3">
-                      <div className="text-gray-700">{selectedBooking.vehicle}</div>
+                      <div className="text-gray-700">
+                        {selectedBooking.make} {selectedBooking.model} (
+                        {selectedBooking.year})
+                      </div>
                     </div>
                   </div>
-                  
+
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Payment Information</h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">
+                      Payment Information
+                    </h3>
                     <div className="space-y-3">
                       <div className="flex justify-between">
-                        <span className="text-gray-700">Status:</span>
-                        {paymentBadge(selectedBooking.paymentStatus)}
+                        <span className="text-gray-700">Workshop:</span>
+                        <span className="font-medium">
+                          {selectedBooking.workshop_name}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-700">Amount:</span>
-                        <span className="font-medium">${selectedBooking.price}</span>
+                        <span className="font-medium">
+                          ₪{selectedBooking.price}
+                        </span>
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="md:col-span-2">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Notes</h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">
+                      Notes
+                    </h3>
                     <div className="bg-gray-50 p-4 rounded-md">
-                      <p className="text-gray-700">{selectedBooking.notes || "No notes available"}</p>
+                      <p className="text-gray-700">
+                        {selectedBooking.notes || "No notes available"}
+                      </p>
                     </div>
                   </div>
                 </div>
               )}
-              
+
               {!isEditing && (
                 <div className="mt-6 flex justify-end space-x-3">
                   <button
                     onClick={() => {
                       setEditData({
-                        date: selectedBooking.date,
-                        time: selectedBooking.time
+                        scheduled_date: selectedBooking.scheduled_date,
+                        scheduled_time: selectedBooking.scheduled_time,
                       });
                       setIsEditing(true);
                     }}
@@ -460,10 +669,13 @@ const BookingsManagement = () => {
                   >
                     Edit Date/Time
                   </button>
-                  {selectedBooking.status === 'pending' && (
+                  {selectedBooking.booking_status === "pending" && (
                     <button
                       onClick={() => {
-                        handleStatusChange(selectedBooking.id, 'confirmed');
+                        handleStatusChange(
+                          selectedBooking.booking_id,
+                          "confirmed"
+                        );
                         setSelectedBooking(null);
                       }}
                       className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
@@ -471,10 +683,13 @@ const BookingsManagement = () => {
                       Confirm Booking
                     </button>
                   )}
-                  {selectedBooking.status !== 'cancelled' && (
+                  {selectedBooking.booking_status !== "cancelled" && (
                     <button
                       onClick={() => {
-                        handleStatusChange(selectedBooking.id, 'cancelled');
+                        handleStatusChange(
+                          selectedBooking.booking_id,
+                          "cancelled"
+                        );
                         setSelectedBooking(null);
                       }}
                       className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"

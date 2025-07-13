@@ -36,7 +36,8 @@ const MechanicLogin = () => {
       localStorage.setItem("approvalStatus", approval_status);
       localStorage.setItem("workshopName", workshop_name);
       localStorage.setItem("workshopId", workshop_id);
-
+     console.log (response.data);
+    
       navigate("/mechanic-dashboard", {
         state: { workshop_name, workshop_id },
       });

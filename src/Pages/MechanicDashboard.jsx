@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import {
   FiDollarSign,
   FiStar,
@@ -12,8 +12,10 @@ import {
   FiPackage,
   FiAlertCircle,
   FiCheck,
-  FiRotateCw
-} from 'react-icons/fi';
+  FiRotateCw,
+  FiRefreshCw,
+  FiXCircle as FiXCircleIcon,
+} from "react-icons/fi";
 
 const WorkshopDashboard = () => {
   const [stats, setStats] = useState({
@@ -21,66 +23,127 @@ const WorkshopDashboard = () => {
     requestsToday: 0,
     monthlyRevenue: 0,
     averageRating: 0,
-    bestService: '',
+    bestService: "",
     openStatus: true,
     pendingRequests: 0,
-    completedServices: 0
+    completedServices: 0,
   });
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [time, setTime] = useState(new Date());
 
-  // Simulate data fetching
+  // Fetch dashboard data from API
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        setTimeout(() => {
-          setStats({
-            servicesToday: 14,
-            requestsToday: 8,
-            monthlyRevenue: 12450.75,
-            averageRating: 4.7,
-            bestService: 'Full Engine Tune-Up',
-            openStatus: true,
-            pendingRequests: 3,
-            completedServices: 42
-          });
-          
-          setLoading(false);
-        }, 1000);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+    fetchDashboardData();
 
     // Update time every minute
     const timer = setInterval(() => setTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const response = await fetch(
+        "http://176.119.254.225:80/mechanic/mechanic/dashboard",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch dashboard data");
+      }
+
+      const data = await response.json();
+      setStats({
+        servicesToday: data.servicesToday,
+        requestsToday: data.requestsToday,
+        monthlyRevenue: data.monthlyRevenue,
+        averageRating: data.averageRating,
+        bestService: data.bestService,
+        openStatus: data.openStatus,
+        pendingRequests: data.pendingRequests,
+        completedServices: data.completedServices,
+      });
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
+    return new Intl.NumberFormat("he-IL", {
+      style: "currency",
+      currency: "ILS",
     }).format(amount);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#086189]"></div>
+            <span className="ml-3 text-gray-600">Loading dashboard...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen p-6">
       <div className="max-w-7xl mx-auto">
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center">
+              <FiXCircleIcon className="h-5 w-5 text-red-400" />
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">
+                  Error loading dashboard
+                </h3>
+                <p className="text-sm text-red-700 mt-1">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
             <p className="text-gray-600">
-              {time.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              {time.toLocaleDateString("en-US", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
             </p>
           </div>
           <div className="mt-4 md:mt-0 flex items-center space-x-4">
-            <div className={`flex items-center px-4 py-2 rounded-full ${stats.openStatus ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+            <button
+              onClick={fetchDashboardData}
+              className="flex items-center gap-2 px-4 py-2 bg-[#086189] text-white rounded-lg hover:bg-[#0a73a1] transition-colors"
+            >
+              <FiRefreshCw className="w-4 h-4" />
+              Refresh
+            </button>
+            <div
+              className={`flex items-center px-4 py-2 rounded-full ${
+                stats.openStatus
+                  ? "bg-green-100 text-green-800"
+                  : "bg-red-100 text-red-800"
+              }`}
+            >
               {stats.openStatus ? (
                 <>
                   <FiCheckCircle className="mr-2" />
@@ -94,98 +157,92 @@ const WorkshopDashboard = () => {
               )}
             </div>
             <div className="text-lg font-medium text-gray-700">
-              {time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+              {time.toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </div>
           </div>
         </div>
 
         {/* Stats Grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="bg-white rounded-xl shadow-sm p-6 h-32 animate-pulse"></div>
-            ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Services Today */}
+          <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm font-medium text-gray-500">
+                  Services Today
+                </p>
+                <h3 className="text-2xl font-bold mt-1">
+                  {stats.servicesToday}
+                </h3>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-lg text-blue-600">
+                <FiTool className="text-xl" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-sm text-gray-500">
+              <FiTrendingUp className="mr-1 text-green-500" />
+              <span>Today's bookings</span>
+            </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {/* Services Today */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Services Today</p>
-                  <h3 className="text-2xl font-bold mt-1">{stats.servicesToday}</h3>
-                </div>
-                <div className="p-3 bg-blue-100 rounded-lg text-blue-600">
-                  <FiTool className="text-xl" />
-                </div>
+
+          {/* Requests Today */}
+          <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-purple-500">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm font-medium text-gray-500">
+                  Requests Today
+                </p>
+                <h3 className="text-2xl font-bold mt-1">
+                  {stats.requestsToday}
+                </h3>
               </div>
-              <div className="mt-4 flex items-center text-sm text-gray-500">
-                <FiTrendingUp className="mr-1 text-green-500" />
-                <span>+12% from yesterday</span>
+              <div className="p-3 bg-purple-100 rounded-lg text-purple-600">
+                <FiUsers className="text-xl" />
               </div>
             </div>
-
-            {/* Requests Today */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-purple-500">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Requests Today</p>
-                  <h3 className="text-2xl font-bold mt-1">{stats.requestsToday}</h3>
-                </div>
-                <div className="p-3 bg-purple-100 rounded-lg text-purple-600">
-                  <FiUsers className="text-xl" />
-                </div>
-              </div>
-              <div className="mt-4 flex items-center text-sm text-gray-500">
-                <FiClock className="mr-1 text-yellow-500" />
-                <span>{stats.pendingRequests} pending</span>
-              </div>
+            <div className="mt-4 flex items-center text-sm text-gray-500">
+              <FiClock className="mr-1 text-yellow-500" />
+              <span>{stats.pendingRequests} pending</span>
             </div>
+          </div>
 
-            {/* Monthly Revenue */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-green-500">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Monthly Revenue</p>
-                  <h3 className="text-2xl font-bold mt-1">{formatCurrency(stats.monthlyRevenue)}</h3>
-                </div>
-                <div className="p-3 bg-green-100 rounded-lg text-green-600">
-                  <FiDollarSign className="text-xl" />
-                </div>
-              </div>
-              <div className="mt-4 flex items-center text-sm text-gray-500">
-                <FiTrendingUp className="mr-1 text-green-500" />
-                <span>+8.5% from last month</span>
-              </div>
-            </div>
-
-            {/* Average Rating */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-yellow-500">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Average Rating</p>
-                  <div className="flex items-center mt-1">
-                    <h3 className="text-2xl font-bold mr-2">{stats.averageRating}</h3>
-                    <div className="flex text-yellow-400">
-                      {[...Array(5)].map((_, i) => (
-                        <FiStar
-                          key={i}
-                          className={i < Math.floor(stats.averageRating) ? 'fill-current' : ''}
-                        />
-                      ))}
-                    </div>
+          {/* Average Rating */}
+          <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-yellow-500">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm font-medium text-gray-500">
+                  Average Rating
+                </p>
+                <div className="flex items-center mt-1">
+                  <h3 className="text-2xl font-bold mr-2">
+                    {stats.averageRating}
+                  </h3>
+                  <div className="flex text-yellow-400">
+                    {[...Array(5)].map((_, i) => (
+                      <FiStar
+                        key={i}
+                        className={
+                          i < Math.floor(stats.averageRating)
+                            ? "fill-current"
+                            : ""
+                        }
+                      />
+                    ))}
                   </div>
                 </div>
-                <div className="p-3 bg-yellow-100 rounded-lg text-yellow-600">
-                  <FiStar className="text-xl" />
-                </div>
               </div>
-              <div className="mt-4 text-sm text-gray-500">
-                Best service: {stats.bestService}
+              <div className="p-3 bg-yellow-100 rounded-lg text-yellow-600">
+                <FiStar className="text-xl" />
               </div>
             </div>
+            <div className="mt-4 text-sm text-gray-500">
+              Best service: {stats.bestService}
+            </div>
           </div>
-        )}
+        </div>
 
         {/* Combined Working Hours and Service Breakdown Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
@@ -199,22 +256,33 @@ const WorkshopDashboard = () => {
                   </div>
                   Working Hours
                 </h2>
-                <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  stats.openStatus ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                }`}>
-                  {stats.openStatus ? 'Open Now' : 'Closed'}
+                <div
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    stats.openStatus
+                      ? "bg-green-100 text-green-800"
+                      : "bg-red-100 text-red-800"
+                  }`}
+                >
+                  {stats.openStatus ? "Open Now" : "Closed"}
                 </div>
               </div>
-              
+
               <div className="space-y-4">
                 {[
-                  { day: 'Mon-Fri', hours: '8:00 AM - 6:00 PM', current: true },
-                  { day: 'Saturday', hours: '9:00 AM - 4:00 PM' },
-                  { day: 'Sunday', hours: 'Closed' }
+                  { day: "Mon-Fri", hours: "8:00 AM - 6:00 PM", current: true },
+                  { day: "Saturday", hours: "9:00 AM - 4:00 PM" },
+                  { day: "Sunday", hours: "Closed" },
                 ].map((item, index) => (
-                  <div key={index} className="flex justify-between items-center py-2">
+                  <div
+                    key={index}
+                    className="flex justify-between items-center py-2"
+                  >
                     <div className="flex items-center">
-                      <span className={`font-medium w-20 ${item.current ? 'text-gray-800' : 'text-gray-500'}`}>
+                      <span
+                        className={`font-medium w-20 ${
+                          item.current ? "text-gray-800" : "text-gray-500"
+                        }`}
+                      >
                         {item.day}
                       </span>
                       {item.current && (
@@ -223,17 +291,25 @@ const WorkshopDashboard = () => {
                         </span>
                       )}
                     </div>
-                    <span className={`text-sm ${item.current ? 'text-gray-800 font-medium' : 'text-gray-400'}`}>
+                    <span
+                      className={`text-sm ${
+                        item.current
+                          ? "text-gray-800 font-medium"
+                          : "text-gray-400"
+                      }`}
+                    >
                       {item.hours}
                     </span>
                   </div>
                 ))}
               </div>
-              
+
               <div className="mt-6 pt-4 border-t border-gray-100">
                 <div className="flex items-center">
                   <FiMapPin className="text-gray-400 mr-2" />
-                  <span className="text-sm text-gray-500">123 Workshop St, Auto City</span>
+                  <span className="text-sm text-gray-500">
+                    123 Workshop St, Auto City
+                  </span>
                 </div>
               </div>
             </div>
@@ -250,63 +326,103 @@ const WorkshopDashboard = () => {
                   Service Breakdown
                 </h2>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Completed Services */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="flex justify-between items-start mb-3">
-                    <span className="text-sm font-medium text-gray-500">Completed</span>
+                    <span className="text-sm font-medium text-gray-500">
+                      Completed
+                    </span>
                     <div className="p-1.5 bg-green-100 rounded-md text-green-600">
                       <FiCheck className="text-sm" />
                     </div>
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-800 mb-2">{stats.completedServices}</h3>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                    {stats.completedServices}
+                  </h3>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="h-2 rounded-full bg-green-500" 
-                      style={{ width: `${(stats.completedServices / (stats.completedServices + stats.pendingRequests)) * 100}%` }}
+                    <div
+                      className="h-2 rounded-full bg-green-500"
+                      style={{
+                        width: `${
+                          (stats.completedServices /
+                            (stats.completedServices + stats.pendingRequests)) *
+                          100
+                        }%`,
+                      }}
                     ></div>
                   </div>
                   <div className="mt-2 flex items-center text-xs text-gray-500">
                     <FiTrendingUp className="mr-1 text-green-500" />
-                    <span>+15% from last week</span>
+                    <span>This month</span>
                   </div>
                 </div>
-                
+
                 {/* In Progress */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="flex justify-between items-start mb-3">
-                    <span className="text-sm font-medium text-gray-500">In Progress</span>
+                    <span className="text-sm font-medium text-gray-500">
+                      In Progress
+                    </span>
                     <div className="p-1.5 bg-blue-100 rounded-md text-blue-600">
                       <FiRotateCw className="text-sm" />
                     </div>
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-800 mb-2">{stats.servicesToday - stats.pendingRequests}</h3>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                    {Math.max(
+                      0,
+                      stats.servicesToday -
+                        stats.completedServices -
+                        stats.pendingRequests
+                    )}
+                  </h3>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="h-2 rounded-full bg-blue-500" 
-                      style={{ width: `${((stats.servicesToday - stats.pendingRequests) / stats.servicesToday) * 100}%` }}
+                    <div
+                      className="h-2 rounded-full bg-blue-500"
+                      style={{
+                        width: `${
+                          stats.servicesToday > 0
+                            ? (Math.max(
+                                0,
+                                stats.servicesToday -
+                                  stats.completedServices -
+                                  stats.pendingRequests
+                              ) /
+                                stats.servicesToday) *
+                              100
+                            : 0
+                        }%`,
+                      }}
                     ></div>
                   </div>
                   <div className="mt-2 flex items-center text-xs text-gray-500">
                     <FiAlertCircle className="mr-1 text-blue-500" />
-                    <span>Average time: 2h 15m</span>
+                    <span>Today's services</span>
                   </div>
                 </div>
-                
+
                 {/* Pending Requests */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="flex justify-between items-start mb-3">
-                    <span className="text-sm font-medium text-gray-500">Pending</span>
+                    <span className="text-sm font-medium text-gray-500">
+                      Pending
+                    </span>
                     <div className="p-1.5 bg-yellow-100 rounded-md text-yellow-600">
                       <FiClock className="text-sm" />
                     </div>
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-800 mb-2">{stats.pendingRequests}</h3>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                    {stats.pendingRequests}
+                  </h3>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="h-2 rounded-full bg-yellow-500" 
-                      style={{ width: `${(stats.pendingRequests / stats.servicesToday) * 100}%` }}
+                    <div
+                      className="h-2 rounded-full bg-yellow-500"
+                      style={{
+                        width: `${
+                          (stats.pendingRequests / stats.servicesToday) * 100
+                        }%`,
+                      }}
                     ></div>
                   </div>
                   <div className="mt-2 flex items-center text-xs text-gray-500">
@@ -315,17 +431,26 @@ const WorkshopDashboard = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="mt-6 pt-6 border-t border-gray-100">
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="text-sm text-gray-500">Total Services This Month</p>
-                    <p className="text-xl font-bold text-gray-800">{stats.completedServices + stats.pendingRequests}</p>
+                    <p className="text-sm text-gray-500">
+                      Total Services This Month
+                    </p>
+                    <p className="text-xl font-bold text-gray-800">
+                      {stats.completedServices + stats.pendingRequests}
+                    </p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-gray-500">Completion Rate</p>
                     <p className="text-xl font-bold text-gray-800">
-                      {((stats.completedServices / (stats.completedServices + stats.pendingRequests)) * 100).toFixed(1)}%
+                      {(
+                        (stats.completedServices /
+                          (stats.completedServices + stats.pendingRequests)) *
+                        100
+                      ).toFixed(1)}
+                      %
                     </p>
                   </div>
                 </div>
@@ -337,68 +462,80 @@ const WorkshopDashboard = () => {
         {/* Best Performing Services */}
         <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
           <div className="mb-6">
-            <h2 className="text-lg font-semibold text-gray-800">Best Performing Services</h2>
+            <h2 className="text-lg font-semibold text-gray-800">
+              Best Performing Services
+            </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {loading ? (
-              [...Array(3)].map((_, i) => (
-                <div key={i} className="h-40 bg-gray-100 rounded-lg animate-pulse"></div>
-              ))
-            ) : (
-              <>
-                <div className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-medium text-gray-800">Full Engine Tune-Up</h3>
-                    <div className="p-2 bg-green-100 rounded-lg text-green-600">
-                      <FiTrendingUp />
-                    </div>
-                  </div>
-                  <p className="text-gray-500 text-sm mb-3">Most requested service this month</p>
-                  <div className="flex justify-between items-center">
-                    <span className="text-2xl font-bold text-gray-800">{formatCurrency(249.99)}</span>
-                    <div className="flex items-center text-yellow-400">
-                      <FiStar className="fill-current" />
-                      <span className="ml-1 text-gray-700">4.9</span>
-                    </div>
-                  </div>
+            <div className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-medium text-gray-800">
+                  {stats.bestService}
+                </h3>
+                <div className="p-2 bg-green-100 rounded-lg text-green-600">
+                  <FiTrendingUp />
                 </div>
+              </div>
+              <p className="text-gray-500 text-sm mb-3">
+                Most requested service this month
+              </p>
+              <div className="flex justify-between items-center">
+                <span className="text-2xl font-bold text-gray-800">
+                  {formatCurrency(249.99)}
+                </span>
+                <div className="flex items-center text-yellow-400">
+                  <FiStar className="fill-current" />
+                  <span className="ml-1 text-gray-700">
+                    {stats.averageRating}
+                  </span>
+                </div>
+              </div>
+            </div>
 
-                <div className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-medium text-gray-800">Brake System Service</h3>
-                    <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
-                      <FiTrendingUp />
-                    </div>
-                  </div>
-                  <p className="text-gray-500 text-sm mb-3">High customer satisfaction</p>
-                  <div className="flex justify-between items-center">
-                    <span className="text-2xl font-bold text-gray-800">{formatCurrency(179.99)}</span>
-                    <div className="flex items-center text-yellow-400">
-                      <FiStar className="fill-current" />
-                      <span className="ml-1 text-gray-700">4.8</span>
-                    </div>
-                  </div>
+            <div className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-medium text-gray-800">
+                  Brake System Service
+                </h3>
+                <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+                  <FiTrendingUp />
                 </div>
+              </div>
+              <p className="text-gray-500 text-sm mb-3">
+                High customer satisfaction
+              </p>
+              <div className="flex justify-between items-center">
+                <span className="text-2xl font-bold text-gray-800">
+                  {formatCurrency(179.99)}
+                </span>
+                <div className="flex items-center text-yellow-400">
+                  <FiStar className="fill-current" />
+                  <span className="ml-1 text-gray-700">4.8</span>
+                </div>
+              </div>
+            </div>
 
-                <div className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-medium text-gray-800">Oil Change</h3>
-                    <div className="p-2 bg-purple-100 rounded-lg text-purple-600">
-                      <FiPackage />
-                    </div>
-                  </div>
-                  <p className="text-gray-500 text-sm mb-3">Most frequent service</p>
-                  <div className="flex justify-between items-center">
-                    <span className="text-2xl font-bold text-gray-800">{formatCurrency(89.99)}</span>
-                    <div className="flex items-center text-yellow-400">
-                      <FiStar className="fill-current" />
-                      <span className="ml-1 text-gray-700">4.7</span>
-                    </div>
-                  </div>
+            <div className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-medium text-gray-800">Oil Change</h3>
+                <div className="p-2 bg-purple-100 rounded-lg text-purple-600">
+                  <FiPackage />
                 </div>
-              </>
-            )}
+              </div>
+              <p className="text-gray-500 text-sm mb-3">
+                Most frequent service
+              </p>
+              <div className="flex justify-between items-center">
+                <span className="text-2xl font-bold text-gray-800">
+                  {formatCurrency(89.99)}
+                </span>
+                <div className="flex items-center text-yellow-400">
+                  <FiStar className="fill-current" />
+                  <span className="ml-1 text-gray-700">4.7</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

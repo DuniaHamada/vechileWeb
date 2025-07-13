@@ -12,11 +12,13 @@ import {
   FiTag,
   FiPackage,
   FiSettings,
-  FiList
+  FiList,
 } from "react-icons/fi";
 
 const ManageServiceList = () => {
   const [categories, setCategories] = useState([]);
+  const [workshopServices, setWorkshopServices] = useState([]);
+  const [categoryServices, setCategoryServices] = useState([]);
   const [newService, setNewService] = useState("");
   const [newServicePrice, setNewServicePrice] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -26,20 +28,45 @@ const ManageServiceList = () => {
     index: -1,
     name: "",
     price: "",
+    is_mobile: false,
+    mobile_fee: "",
   });
   const [subcategoriesByCategory, setSubcategoriesByCategory] = useState({});
-  const [newCategoryName, setNewCategoryName] = useState("");
-  const [editingCategory, setEditingCategory] = useState({
-    id: null,
-    name: "",
-  });
+  const [isWorkshopService, setIsWorkshopService] = useState(true);
+  const [isMobileService, setIsMobileService] = useState(false);
+  const [mobileFee, setMobileFee] = useState("");
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Fetch categories from API on mount
+  // Fetch categories and workshop services from API on mount
   useEffect(() => {
     fetchCategories();
+    fetchWorkshopServices();
   }, []);
+
+  // Process workshop services and organize them by category
+  useEffect(() => {
+    if (workshopServices.length > 0 && categories.length > 0) {
+      const servicesByCategory = {};
+
+      // Group workshop services by category
+      workshopServices.forEach((service) => {
+        const category = categories.find(
+          (cat) => cat.category_id === service.category_id
+        );
+        if (category) {
+          if (!servicesByCategory[category.category_name]) {
+            servicesByCategory[category.category_name] = [];
+          }
+          servicesByCategory[category.category_name].push(service);
+        }
+      });
+
+      // Update subcategoriesByCategory with workshop services
+      setSubcategoriesByCategory(servicesByCategory);
+    }
+  }, [workshopServices, categories]);
 
   const fetchCategories = async () => {
     setIsLoading(true);
@@ -59,32 +86,63 @@ const ManageServiceList = () => {
     }
   };
 
+  const fetchWorkshopServices = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Get workshop ID from localStorage or use a default
+      const workshopId = localStorage.getItem("workshopId");
+
+      const token = localStorage.getItem("accessToken");
+
+      const res = await fetch(
+        `http://176.119.254.225:80/service/workshops/${workshopId}/services`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (!res.ok) throw new Error("Failed to fetch workshop services");
+      const data = await res.json();
+      setWorkshopServices(data);
+      console.log(data);
+    } catch (error) {
+      console.error("Error fetching workshop services:", error);
+      setError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchCategoryServices = async (categoryId) => {
+    if (!categoryId) {
+      setCategoryServices([]);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `http://176.119.254.225:80/ServiceCategories/categories/${categoryId}/subcategories`
+      );
+      if (!res.ok) throw new Error("Failed to fetch category services");
+      const data = await res.json();
+      setCategoryServices(data);
+    } catch (error) {
+      console.error("Error fetching category services:", error);
+      setError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const toggleCategory = async (categoryName, categoryId) => {
     setExpandedCategories((prev) => ({
       ...prev,
       [categoryName]: !prev[categoryName],
     }));
-
-    // Fetch subcategories when category is expanded
-    if (!expandedCategories[categoryName]) {
-      setIsLoading(true);
-      try {
-        const res = await fetch(
-          `http://176.119.254.225:80/ServiceCategories/categories/${categoryId}/subcategories`
-        );
-        if (!res.ok) throw new Error("Failed to fetch subcategories");
-        const data = await res.json();
-        setSubcategoriesByCategory((prev) => ({
-          ...prev,
-          [categoryName]: data,
-        }));
-      } catch (error) {
-        console.error("Error fetching subcategories:", error);
-        setError(error.message);
-      } finally {
-        setIsLoading(false);
-      }
-    }
   };
 
   const addService = async () => {
@@ -93,54 +151,62 @@ const ManageServiceList = () => {
     const price = parseFloat(newServicePrice);
     if (isNaN(price)) return;
 
+    // Validate that at least one service type is selected
+    if (!isWorkshopService && !isMobileService) {
+      alert("Please select at least one service type (Workshop or Mobile)");
+      return;
+    }
+
+    // Validate mobile fee if mobile service is selected
+    if (isMobileService && (!mobileFee || parseFloat(mobileFee) < 0)) {
+      alert("Please enter a valid mobile fee for mobile services");
+      return;
+    }
+
+    // Find the selected service from categoryServices
+    const selectedService = categoryServices.find(
+      (service) => service.subcategory_name === newService
+    );
+    if (!selectedService) return;
+
     setIsLoading(true);
+    const token = localStorage.getItem("accessToken");
+    const workshopId = localStorage.getItem("workshopId");
     try {
-      const res = await fetch(
-        `http://176.119.254.225:80/ServiceCategories/categories/${selectedCategory}/subcategories`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            subcategory_name: newService.trim(),
-            price: price,
-          }),
-        }
-      );
+      // Get workshop ID from localStorage
+
+      const res = await fetch(`http://176.119.254.225:80/service/services`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          service_name: selectedService.subcategory_name,
+          service_description: selectedService.service_description || "",
+          category_id: parseInt(selectedCategory),
+          subcategory_id: selectedService.subcategory_id,
+          price: price,
+          workshop_id: workshopId,
+          estimated_duration: 60, // Default 1 hour
+          is_workshop: isWorkshopService,
+          is_mobile: isMobileService,
+          mobile_fee: isMobileService ? parseFloat(mobileFee) : 0,
+        }),
+      });
 
       if (!res.ok) throw new Error("Failed to add service");
 
-      const newSubcategory = await res.json();
-
-      // Update frontend state
-      setCategories((prev) =>
-        prev.map((category) =>
-          category.category_id === parseInt(selectedCategory)
-            ? {
-                ...category,
-                services: [...(category.services || []), newSubcategory],
-              }
-            : category
-        )
-      );
-
-      // Update subcategories list if category is expanded
-      const categoryObj = categories.find(c => c.category_id === parseInt(selectedCategory));
-      if (categoryObj && expandedCategories[categoryObj.category_name]) {
-        setSubcategoriesByCategory(prev => ({
-          ...prev,
-          [categoryObj.category_name]: [
-            ...(prev[categoryObj.category_name] || []),
-            newSubcategory
-          ]
-        }));
-      }
+      // Refresh workshop services to show the newly added service
+      await fetchWorkshopServices();
 
       // Reset form
       setNewService("");
       setNewServicePrice("");
       setSelectedCategory("");
+      setIsWorkshopService(true);
+      setIsMobileService(false);
+      setMobileFee("");
     } catch (error) {
       console.error("Error adding service:", error);
       setError(error.message);
@@ -153,15 +219,16 @@ const ManageServiceList = () => {
     setEditingService({
       category: categoryName,
       index,
-      name: service.subcategory_name,
-      price: service.price.toString(),
+      name: service.service_name,
+      price: service.price,
+      is_mobile: service.is_mobile,
+      mobile_fee: service.mobile_fee || "",
     });
   };
 
   const saveEdit = async () => {
     if (
       editingService.index === -1 ||
-      !editingService.name.trim() ||
       !editingService.price
     )
       return;
@@ -169,39 +236,43 @@ const ManageServiceList = () => {
     const price = parseFloat(editingService.price);
     if (isNaN(price)) return;
 
-    const categoryName = editingService.category;
-    const subcategory =
-      subcategoriesByCategory[categoryName][editingService.index];
+    // Validate mobile fee if mobile service is selected
+    if (editingService.is_mobile && (!editingService.mobile_fee || parseFloat(editingService.mobile_fee) < 0)) {
+      alert("Please enter a valid mobile fee for mobile services");
+      return;
+    }
+
+    const service = workshopServices[editingService.index];
 
     setIsLoading(true);
+    const token = localStorage.getItem("accessToken");
+
     try {
       const response = await fetch(
-        `http://176.119.254.225:80/ServiceCategories/services/${subcategory.subcategory_id}`,
+        `http://176.119.254.225:80/service/services/${service.service_id}`,
         {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            subcategory_name: editingService.name.trim(),
             price: price,
+            is_mobile: editingService.is_mobile,
+            mobile_fee: editingService.is_mobile ? parseFloat(editingService.mobile_fee) : 0,
           }),
         }
       );
 
-      if (!response.ok) throw new Error("Failed to update service");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update service");
+      }
 
-      const updated = await response.json();
+      // Refresh workshop services to reflect the update
+      await fetchWorkshopServices();
 
-      // Update frontend state
-      setSubcategoriesByCategory((prev) => ({
-        ...prev,
-        [categoryName]: prev[categoryName].map((s, i) =>
-          i === editingService.index ? updated : s
-        ),
-      }));
-
-      setEditingService({ category: "", index: -1, name: "", price: "" });
+      setEditingService({ category: "", index: -1, name: "", price: "", is_mobile: false, mobile_fee: "" });
     } catch (err) {
       console.error(err);
       setError(err.message);
@@ -210,162 +281,30 @@ const ManageServiceList = () => {
     }
   };
 
-  const deleteService = async (categoryName, index, subcategoryId) => {
-    if (!window.confirm("Are you sure you want to delete this service?")) return;
-
-    setIsLoading(true);
-    try {
-      const response = await fetch(
-        `http://176.119.254.225:80/ServiceCategories/services/${subcategoryId}`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to delete service");
-      }
-
-      setSubcategoriesByCategory((prev) => ({
-        ...prev,
-        [categoryName]: prev[categoryName].filter((_, i) => i !== index),
-      }));
-    } catch (error) {
-      console.error(error);
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const addCategory = async () => {
-    if (!newCategoryName.trim()) return;
-
-    setIsLoading(true);
-    try {
-      const response = await fetch(
-        "http://176.119.254.225:80/ServiceCategories/categories",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            category_name: newCategoryName.trim(),
-          }),
-        }
-      );
-
-      if (!response.ok) throw new Error("Failed to add category");
-
-      const newCategory = await response.json();
-      setCategories([...categories, newCategory]);
-      setNewCategoryName("");
-    } catch (error) {
-      console.error(error);
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const startEditingCategory = (category) => {
-    setEditingCategory({
-      id: category.category_id,
-      name: category.category_name,
-    });
-  };
-
-  const saveCategoryEdit = async () => {
-    if (!editingCategory.name.trim()) return;
-
-    setIsLoading(true);
-    try {
-      const response = await fetch(
-        `http://176.119.254.225:80/ServiceCategories/categories/${editingCategory.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            category_name: editingCategory.name.trim(),
-          }),
-        }
-      );
-
-      if (!response.ok) throw new Error("Failed to update category");
-
-      const updatedCategory = await response.json();
-
-      setCategories((prev) =>
-        prev.map((cat) =>
-          cat.category_id === updatedCategory.category_id
-            ? updatedCategory
-            : cat
-        )
-      );
-
-      // Update subcategoriesByCategory key if name changed
-      if (editingCategory.name !== updatedCategory.category_name) {
-        const oldSubcategories = subcategoriesByCategory[editingCategory.name];
-        if (oldSubcategories) {
-          setSubcategoriesByCategory((prev) => {
-            const newState = { ...prev };
-            delete newState[editingCategory.name];
-            newState[updatedCategory.category_name] = oldSubcategories;
-            return newState;
-          });
-        }
-      }
-
-      setEditingCategory({ id: null, name: "" });
-    } catch (error) {
-      console.error(error);
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const deleteCategory = async (categoryId, categoryName) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this category and all its services?"
-      )
-    )
+  const deleteService = async (categoryName, index, serviceId) => {
+    if (!window.confirm("Are you sure you want to delete this service?"))
       return;
 
     setIsLoading(true);
     try {
-      // First delete all subcategories
-      const subcategories = subcategoriesByCategory[categoryName] || [];
-      for (const subcategory of subcategories) {
-        await fetch(
-          `http://176.119.254.225:80/ServiceCategories/services/${subcategory.subcategory_id}`,
-          {
-            method: "DELETE",
-          }
-        );
-      }
-
-      // Then delete the category
+      const token = localStorage.getItem("accessToken");
       const response = await fetch(
-        `http://176.119.254.225:80/ServiceCategories/categories/${categoryId}`,
+        `http://176.119.254.225:80/service/services/${serviceId}`,
         {
           method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
 
-      if (!response.ok) throw new Error("Failed to delete category");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete service");
+      }
 
-      // Update state
-      setCategories(categories.filter((cat) => cat.category_id !== categoryId));
-      setSubcategoriesByCategory((prev) => {
-        const newState = { ...prev };
-        delete newState[categoryName];
-        return newState;
-      });
+      // Refresh workshop services to reflect the deletion
+      await fetchWorkshopServices();
     } catch (error) {
       console.error(error);
       setError(error.message);
@@ -383,11 +322,15 @@ const ManageServiceList = () => {
             <FiSettings className="text-2xl" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Service Management</h1>
-            <p className="text-gray-500">Manage your workshop services and pricing</p>
+            <h1 className="text-2xl font-bold text-gray-800">
+              Service Management
+            </h1>
+            <p className="text-gray-500">
+              Manage your workshop services and pricing
+            </p>
           </div>
         </div>
-        
+
         {error && (
           <div className="mt-4 md:mt-0 px-4 py-2 bg-red-100 border border-red-200 text-red-700 rounded-md flex items-center">
             <FiX className="mr-2" onClick={() => setError(null)} />
@@ -396,62 +339,20 @@ const ManageServiceList = () => {
         )}
       </div>
 
-      {/* Add New Category Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <div className="flex items-center mb-4">
-          <FiLayers className="text-blue-500 mr-2" />
-          <h2 className="text-lg font-semibold text-gray-800">Add New Category</h2>
-        </div>
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
-            <label htmlFor="category-name" className="block text-sm font-medium text-gray-700 mb-1">
-              Category Name
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiTag className="text-gray-400" />
-              </div>
-              <input
-                type="text"
-                id="category-name"
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
-                placeholder="e.g. Engine Services"
-                className="pl-10 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={addCategory}
-              disabled={!newCategoryName.trim() || isLoading}
-              className={`px-5 py-2.5 rounded-lg font-medium flex items-center gap-2 transition-all ${
-                !newCategoryName.trim() || isLoading
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-              }`}
-            >
-              {isLoading ? (
-                "Adding..."
-              ) : (
-                <>
-                  <FiPlus /> Add Category
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Add New Service Section */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
         <div className="flex items-center mb-4">
           <FiPackage className="text-blue-500 mr-2" />
-          <h2 className="text-lg font-semibold text-gray-800">Add New Service</h2>
+          <h2 className="text-lg font-semibold text-gray-800">
+            Add New Service
+          </h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label htmlFor="service-category" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="service-category"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Category
             </label>
             <div className="relative">
@@ -461,12 +362,19 @@ const ManageServiceList = () => {
               <select
                 id="service-category"
                 value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value);
+                  fetchCategoryServices(e.target.value);
+                  setNewService(""); // Reset service selection when category changes
+                }}
                 className="pl-10 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none"
               >
                 <option value="">Select Category</option>
                 {categories.map((category) => (
-                  <option key={category.category_id} value={category.category_id}>
+                  <option
+                    key={category.category_id}
+                    value={category.category_id}
+                  >
                     {category.category_name}
                   </option>
                 ))}
@@ -475,26 +383,50 @@ const ManageServiceList = () => {
           </div>
 
           <div>
-            <label htmlFor="service-name" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="service-name"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Service Name
             </label>
-            <input
-              type="text"
-              id="service-name"
-              value={newService}
-              onChange={(e) => setNewService(e.target.value)}
-              placeholder="e.g. Oil Change"
-              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FiPackage className="text-gray-400" />
+              </div>
+              <select
+                id="service-name"
+                value={newService}
+                onChange={(e) => setNewService(e.target.value)}
+                className="pl-10 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none"
+                disabled={!selectedCategory}
+              >
+                <option value="">
+                  {selectedCategory
+                    ? "Select Service"
+                    : "Select Category First"}
+                </option>
+                {categoryServices.map((service) => (
+                  <option
+                    key={service.subcategory_id}
+                    value={service.subcategory_name}
+                  >
+                    {service.subcategory_name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div>
-            <label htmlFor="service-price" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="service-price"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Price
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiDollarSign className="text-gray-400" />
+                <span className="text-gray-400">₪</span>
               </div>
               <input
                 type="number"
@@ -509,14 +441,76 @@ const ManageServiceList = () => {
             </div>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Service Type
+            </label>
+            <div className="flex items-center space-x-4">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={isWorkshopService}
+                  onChange={(e) => setIsWorkshopService(e.target.checked)}
+                  className="mr-2 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">Workshop Service</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={isMobileService}
+                  onChange={(e) => setIsMobileService(e.target.checked)}
+                  className="mr-2 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">Mobile Service</span>
+              </label>
+            </div>
+          </div>
+
+          {isMobileService && (
+            <div>
+              <label
+                htmlFor="mobile-fee"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Mobile Fee
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span className="text-gray-400">₪</span>
+                </div>
+                <input
+                  type="number"
+                  id="mobile-fee"
+                  value={mobileFee}
+                  onChange={(e) => setMobileFee(e.target.value)}
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                  className="pl-10 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+          )}
+
           <div className="flex items-end">
             <button
               onClick={addService}
               disabled={
-                !newService.trim() || !selectedCategory || !newServicePrice || isLoading
+                !newService.trim() ||
+                !selectedCategory ||
+                !newServicePrice ||
+                (!isWorkshopService && !isMobileService) ||
+                (isMobileService && !mobileFee) ||
+                isLoading
               }
               className={`w-full px-5 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 transition-all ${
-                !newService.trim() || !selectedCategory || !newServicePrice || isLoading
+                !newService.trim() ||
+                !selectedCategory ||
+                !newServicePrice ||
+                (!isWorkshopService && !isMobileService) ||
+                (isMobileService && !mobileFee) ||
+                isLoading
                   ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
               }`}
@@ -533,250 +527,196 @@ const ManageServiceList = () => {
         </div>
       </div>
 
-      {/* Services List by Category */}
+      {/* Services List */}
       <div className="space-y-5">
-        {isLoading && categories.length === 0 ? (
+        {isLoading ? (
           <div className="flex justify-center py-10">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
           </div>
-        ) : categories.length === 0 ? (
+        ) : workshopServices.length === 0 ? (
           <div className="text-center py-10 bg-white rounded-xl border border-gray-200">
             <FiPackage className="mx-auto text-4xl text-gray-400 mb-3" />
-            <h3 className="text-lg font-medium text-gray-700">No service categories found</h3>
-            <p className="text-gray-500">Add your first category to get started</p>
+            <h3 className="text-lg font-medium text-gray-700">
+              No services found
+            </h3>
+            <p className="text-gray-500">
+              Add your first service to get started
+            </p>
           </div>
         ) : (
-          categories.map((category) => (
-            <div
-              key={category.category_id}
-              className="border border-gray-200 rounded-xl overflow-hidden bg-white"
-            >
-              {/* Category Header */}
-              <div
-                className="flex justify-between items-center p-4 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors border-b border-gray-200"
-                onClick={() =>
-                  toggleCategory(category.category_name, category.category_id)
-                }
-              >
-                <div className="flex items-center gap-3">
-                  {editingCategory.id === category.category_id ? (
-                    <div className="flex items-center gap-2 w-full">
-                      <div className="relative flex-1">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <FiTag className="text-gray-400" />
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800">
+                Workshop Services ({workshopServices.length})
+              </h3>
+            </div>
+            <div className="divide-y divide-gray-200">
+              {workshopServices.map((service, index) => (
+                <div
+                  key={service.service_id}
+                  className="p-4 hover:bg-gray-50 transition-colors"
+                >
+                  {editingService.index === index ? (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Price
+                        </label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span className="text-gray-400">₪</span>
+                          </div>
+                          <input
+                            type="number"
+                            value={editingService.price}
+                            onChange={(e) =>
+                              setEditingService((prev) => ({
+                                ...prev,
+                                price: e.target.value,
+                              }))
+                            }
+                            placeholder="0.00"
+                            min="0"
+                            step="0.01"
+                            className="pl-10 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            autoFocus
+                          />
                         </div>
-                        <input
-                          type="text"
-                          value={editingCategory.name}
-                          onChange={(e) =>
-                            setEditingCategory((prev) => ({
-                              ...prev,
-                              name: e.target.value,
-                            }))
-                          }
-                          className="pl-10 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") saveCategoryEdit();
-                          }}
-                          autoFocus
-                        />
                       </div>
-                      <button
-                        onClick={saveCategoryEdit}
-                        className="p-2 text-green-600 hover:text-green-800 rounded-lg hover:bg-green-50 transition-colors"
-                        title="Save"
-                      >
-                        <FiCheck size={18} />
-                      </button>
-                      <button
-                        onClick={() => setEditingCategory({ id: null, name: "" })}
-                        className="p-2 text-red-600 hover:text-red-800 rounded-lg hover:bg-red-50 transition-colors"
-                        title="Cancel"
-                      >
-                        <FiX size={18} />
-                      </button>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Mobile Service
+                        </label>
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={editingService.is_mobile}
+                            onChange={(e) =>
+                              setEditingService((prev) => ({
+                                ...prev,
+                                is_mobile: e.target.checked,
+                              }))
+                            }
+                            className="mr-2 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-700">Mobile Service</span>
+                        </div>
+                      </div>
+                      {editingService.is_mobile && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Mobile Fee
+                          </label>
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                              <span className="text-gray-400">₪</span>
+                            </div>
+                            <input
+                              type="number"
+                              value={editingService.mobile_fee}
+                              onChange={(e) =>
+                                setEditingService((prev) => ({
+                                  ...prev,
+                                  mobile_fee: e.target.value,
+                                }))
+                              }
+                              placeholder="0.00"
+                              min="0"
+                              step="0.01"
+                              className="pl-10 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={saveEdit}
+                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
+                        >
+                          <FiCheck size={16} /> Save
+                        </button>
+                        <button
+                          onClick={() =>
+                            setEditingService({
+                              category: "",
+                              index: -1,
+                              name: "",
+                              price: "",
+                              is_mobile: false,
+                              mobile_fee: "",
+                            })
+                          }
+                          className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
+                        >
+                          <FiX size={16} /> Cancel
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <div className="flex items-center">
-                      <FiLayers className="text-blue-500 mr-2" />
-                      <h3 className="font-semibold text-gray-800">
-                        {category.category_name}
-                      </h3>
-                      <span className="ml-2 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                        {(subcategoriesByCategory[category.category_name]?.length || 0)} services
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      startEditingCategory(category);
-                    }}
-                    className="p-2 text-gray-600 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-                    title="Edit Category"
-                  >
-                    <FiEdit2 size={18} />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteCategory(category.category_id, category.category_name);
-                    }}
-                    className="p-2 text-gray-600 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                    title="Delete Category"
-                  >
-                    <FiTrash2 size={18} />
-                  </button>
-                  <span className="text-gray-500 ml-2">
-                    {expandedCategories[category.category_name] ? (
-                      <FiChevronUp size={20} />
-                    ) : (
-                      <FiChevronDown size={20} />
-                    )}
-                  </span>
-                </div>
-              </div>
-
-              {/* Services List */}
-              {expandedCategories[category.category_name] && (
-                <div className="divide-y divide-gray-200">
-                  {isLoading ? (
-                    <div className="flex justify-center py-6">
-                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-                    </div>
-                  ) : subcategoriesByCategory[category.category_name]?.length > 0 ? (
-                    subcategoriesByCategory[category.category_name].map(
-                      (sub, index) => (
-                        <div
-                          key={sub.subcategory_id}
-                          className="p-4 hover:bg-gray-50 transition-colors"
-                        >
-                          {editingService.category === category.category_name &&
-                          editingService.index === index ? (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  Service Name
-                                </label>
-                                <input
-                                  type="text"
-                                  value={editingService.name}
-                                  onChange={(e) =>
-                                    setEditingService((prev) => ({
-                                      ...prev,
-                                      name: e.target.value,
-                                    }))
-                                  }
-                                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                  placeholder="Service name"
-                                  autoFocus
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  Price
-                                </label>
-                                <div className="relative">
-                                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <FiDollarSign className="text-gray-400" />
-                                  </div>
-                                  <input
-                                    type="number"
-                                    value={editingService.price}
-                                    onChange={(e) =>
-                                      setEditingService((prev) => ({
-                                        ...prev,
-                                        price: e.target.value,
-                                      }))
-                                    }
-                                    placeholder="0.00"
-                                    min="0"
-                                    step="0.01"
-                                    className="pl-10 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                  />
-                                </div>
-                              </div>
-                              <div className="flex gap-2 justify-end">
-                                <button
-                                  onClick={saveEdit}
-                                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
-                                >
-                                  <FiCheck size={16} /> Save
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    setEditingService({
-                                      category: "",
-                                      index: -1,
-                                      name: "",
-                                      price: "",
-                                    })
-                                  }
-                                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
-                                >
-                                  <FiX size={16} /> Cancel
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <div className="font-medium text-gray-800 flex items-center">
-                                  <FiPackage className="text-blue-500 mr-2" />
-                                  {sub.subcategory_name}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-4">
-                                <div className="flex items-center text-green-700 font-medium">
-                                  <FiDollarSign className="mr-1" />
-                                  {Number(sub.price).toFixed(2)}
-                                </div>
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() =>
-                                      startEditing(
-                                        category.category_name,
-                                        index,
-                                        sub
-                                      )
-                                    }
-                                    className="p-2 text-gray-600 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-                                    title="Edit"
-                                  >
-                                    <FiEdit2 size={18} />
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      deleteService(
-                                        category.category_name,
-                                        index,
-                                        sub.subcategory_id
-                                      )
-                                    }
-                                    className="p-2 text-gray-600 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                                    title="Delete"
-                                  >
-                                    <FiTrash2 size={18} />
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-800 flex items-center mb-1">
+                          <FiPackage className="text-blue-500 mr-2" />
+                          {service.service_name}
+                          <div className="flex gap-1 ml-2">
+                            {service.is_workshop && (
+                              <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                                Workshop
+                              </span>
+                            )}
+                            {service.is_mobile && (
+                              <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full">
+                                Mobile
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {service.service_description && (
+                          <div className="text-sm text-gray-600 mb-2">
+                            {service.service_description}
+                          </div>
+                        )}
+                        {service.is_mobile && service.mobile_fee > 0 && (
+                          <div className="text-sm text-gray-600">
+                            Mobile Fee: ₪{Number(service.mobile_fee).toFixed(2)}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center text-green-700 font-medium">
+                          <span className="mr-1">₪</span>
+                          {Number(service.price).toFixed(2)}
+                          {service.is_mobile && service.mobile_fee > 0 && (
+                            <span className="text-xs text-gray-500 ml-1">
+                              +₪{Number(service.mobile_fee).toFixed(2)} mobile
+                            </span>
                           )}
                         </div>
-                      )
-                    )
-                  ) : (
-                    <div className="p-6 text-center text-gray-500">
-                      <FiPackage className="mx-auto text-3xl mb-2" />
-                      No services in this category
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => startEditing("", index, service)}
+                            className="p-2 text-gray-600 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                            title="Edit"
+                          >
+                            <FiEdit2 size={18} />
+                          </button>
+                          <button
+                            onClick={() =>
+                              deleteService("", index, service.service_id)
+                            }
+                            className="p-2 text-gray-600 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                            title="Delete"
+                          >
+                            <FiTrash2 size={18} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
-              )}
+              ))}
             </div>
-          ))
+          </div>
         )}
       </div>
     </div>

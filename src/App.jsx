@@ -46,7 +46,7 @@ const App = () => {
 
         <Route path="/mechanic-login" element={<MechanicLogin />} />
         <Route path="/mechanic-forgot-password" element={<ForgotPassword />} />
-        
+
         {/* Mechanic Dashboard Routes */}
         <Route path="/mechanic-dashboard" element={<MechanicLayout />}>
           <Route index element={<MechanicDashboard />} />
@@ -56,7 +56,7 @@ const App = () => {
           <Route path="offers" element={<SpecialOffers />} />
           <Route path="reports" element={<Reports />} />
           <Route path="financial-reports" element={<Reports />} />
-          <Route path="invoices" element={<InvoicesPage />} />
+          {/* <Route path="invoices" element={<InvoicesPage />} /> */}
           <Route path="reviews" element={<Feedback />} />
           <Route path="settings/profile" element={<WorkshopProfile />} />
           <Route path="settings/services" element={<ServicesPricing />} />
